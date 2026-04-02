@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Esam Kora School</title>
+
+<style>
+body {
+    font-family: Arial;
+    background: linear-gradient(135deg, #0f2027, #203a43, #2c5364);
+    color: white;
+    text-align: center;
+    margin: 0;
+}
+
+header {
+    background: rgba(0,0,0,0.5);
+    padding: 20px;
+    font-size: 28px;
+    font-weight: bold;
+}
+
+.container {
+    margin-top: 80px;
+}
+
+input {
+    padding: 12px;
+    width: 250px;
+    border-radius: 10px;
+    border: none;
+    outline: none;
+    margin: 10px;
+}
+
+button {
+    padding: 12px 20px;
+    border: none;
+    border-radius: 10px;
+    background: #00c6ff;
+    color: white;
+    font-size: 16px;
+    cursor: pointer;
+    transition: 0.3s;
+}
+
+button:hover {
+    background: #0072ff;
+}
+
+.card {
+    margin: 30px auto;
+    padding: 20px;
+    width: 300px;
+    background: rgba(255,255,255,0.1);
+    border-radius: 15px;
+    backdrop-filter: blur(10px);
+}
+
+h2 {
+    margin-bottom: 20px;
+}
+</style>
+
+</head>
+
+<body>
+
+<header>
+Esam Kora School
+</header>
+
+<div class="container">
+    <h2>استعلام عن النتيجة</h2>
+
+    <input type="text" id="seat" placeholder="ادخل رقم الجلوس">
+    <br>
+    <button onclick="getResult()">عرض النتيجة</button>
+
+    <div id="result"></div>
+</div>
+
+<script>
+async function getResult() {
+    let seat = document.getElementById("seat").value;
+
+    let response = await fetch("results.csv");
+    let data = await response.text();
+
+    let rows = data.split("\n");
+
+    let found = false;
+
+    rows.forEach(row => {
+        let cols = row.split(",");
+
+        if (cols[0] == seat) {
+            document.getElementById("result").innerHTML = `
+                <div class="card">
+                    <h3>${cols[1]}</h3>
+                    <p>الصف: ${cols[2]}</p>
+                    <p>المجموع: ${cols[3]}</p>
+                    <p>الحالة: ${cols[4]}</p>
+                </div>
+            `;
+            found = true;
+        }
+    });
+
+    if (!found) {
+        document.getElementById("result").innerHTML = `
+            <div class="card">
+                <p>❌ رقم الجلوس غير موجود</p>
+            </div>
+        `;
+    }
+}
+</script>
+
+</body>
+</html>
