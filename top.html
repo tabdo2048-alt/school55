@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>الأوائل - Esam Kora</title>
+
+<style>
+body {
+    font-family: Arial;
+    background: linear-gradient(135deg, #141e30, #243b55);
+    color: white;
+    text-align: center;
+}
+
+h1 {
+    margin-top: 20px;
+}
+
+.card {
+    background: rgba(255,255,255,0.1);
+    margin: 15px auto;
+    padding: 15px;
+    width: 300px;
+    border-radius: 10px;
+}
+</style>
+
+</head>
+
+<body>
+
+<h1>🏆 أوائل الطلبة</h1>
+
+<div id="topStudents"></div>
+
+<script>
+async function loadTopStudents() {
+    let response = await fetch("results.csv");
+    let data = await response.text();
+
+    let rows = data.split("\n").slice(1); // تجاهل العناوين
+
+    let students = [];
+
+    rows.forEach(row => {
+        if (!row.trim()) return;
+
+        let cols = row.split(",");
+
+        students.push({
+            name: cols[1],
+            total: parseInt(cols[9]) // عمود المجموع
+        });
+    });
+
+    // ترتيب تنازلي حسب المجموع
+    students.sort((a, b) => b.total - a.total);
+
+    // نجيب أول 5 بس
+    let top = students.slice(0, 5);
+
+    let html = "";
+
+    top.forEach((s, index) => {
+        html += `
+            <div class="card">
+                <h3>🥇 المركز ${index + 1}</h3>
+                <p>${s.name}</p>
+                <p>المجموع: ${s.total}</p>
+            </div>
+        `;
+    });
+
+    document.getElementById("topStudents").innerHTML = html;
+}
+
+loadTopStudents();
+</script>
+
+</body>
+</html>
