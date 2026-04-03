@@ -1,5 +1,4 @@
 
-
 <!DOCTYPE html>
 <html lang="ar">
 <head>
@@ -24,7 +23,7 @@ body {
     max-width: 500px;
 }
 
-input, button {
+input, button, select {
     width: 90%;
     padding: 10px;
     margin: 5px;
@@ -61,6 +60,7 @@ button {
     <input type="text" id="name" placeholder="اسم الطالب">
     <input type="text" id="grade" placeholder="الصف">
 
+    <h3>إضافة درجات الطالب (المواد اختيارية)</h3>
     <input type="number" id="math" placeholder="رياضيات">
     <input type="number" id="physics" placeholder="فيزياء">
     <input type="number" id="chemistry" placeholder="كيمياء">
@@ -117,32 +117,35 @@ window.logout = function() {
     signOut(auth);
 }
 
-// ➕ إضافة طالب
+// ➕ إضافة طالب (المواد اختيارية)
 window.addStudent = async function() {
     let seat = document.getElementById("seat").value;
     let name = document.getElementById("name").value;
     let grade = document.getElementById("grade").value;
 
-    let math = Number(document.getElementById("math").value);
-    let physics = Number(document.getElementById("physics").value);
-    let chemistry = Number(document.getElementById("chemistry").value);
-    let biology = Number(document.getElementById("biology").value);
-    let english = Number(document.getElementById("english").value);
-    let computer = Number(document.getElementById("computer").value);
+    // جمع المواد ديناميك
+    let subjects = {};
+    const fields = ["math","physics","chemistry","biology","english","computer"];
+    fields.forEach(f => {
+        let val = document.getElementById(f).value;
+        if(val !== "") {  // لو حاطط حاجة بس
+            subjects[f] = Number(val);
+        }
+    });
 
-    let total = math + physics + chemistry + biology + english + computer;
+    let total = Object.values(subjects).reduce((a,b)=>a+b,0);
     let status = total >= 210 ? "ناجح" : "راسب";
 
     try {
         await addDoc(collection(db, "students"), {
-            seat,name,grade,
-            math,physics,chemistry,biology,english,computer,
-            total,status
+            seat, name, grade,
+            subjects,   // المواد فقط اللي اتضافت
+            total, status
         });
 
         document.getElementById("msg").innerText = "✅ تم الإضافة";
 
-    } catch (e) {
+    } catch(e) {
         document.getElementById("msg").innerText = "❌ خطأ";
     }
 }
