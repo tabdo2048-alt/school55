@@ -3,148 +3,149 @@
 <html lang="ar">
 <head>
 <meta charset="UTF-8">
-<title>Admin - Esam Kora</title>
-
+<title>Admin Panel - Esam Kora</title>
 <style>
 body {
-    font-family: Arial;
-    direction: rtl;
-    text-align: center;
-    background: linear-gradient(135deg,#141e30,#243b55);
-    color: white;
+  font-family: Arial;
+  background: #111;
+  color: white;
+  text-align: center;
 }
-
-.container {
-    margin: 50px auto;
-    background: rgba(255,255,255,0.1);
-    padding: 20px;
-    border-radius: 15px;
-    width: 90%;
-    max-width: 500px;
+input, select, button {
+  margin: 10px;
+  padding: 10px;
+  width: 250px;
+  border-radius: 8px;
+  border: none;
 }
-
-input, button {
-    width: 90%;
-    padding: 10px;
-    margin: 5px;
-    border-radius: 10px;
-    border: none;
-}
-
 button {
-    background: #00c6ff;
-    color: white;
-    cursor: pointer;
+  background: #00c3ff;
+  color: black;
+  font-weight: bold;
+  cursor: pointer;
 }
 </style>
 </head>
-
 <body>
 
-<!-- 🔐 Login -->
-<div class="container" id="loginBox">
-    <h2>تسجيل دخول الأدمن</h2>
-    <input type="email" id="email" placeholder="Email">
-    <input type="password" id="password" placeholder="Password">
-    <button onclick="login()">دخول</button>
-    <p id="loginMsg"></p>
-</div>
+<h1>Admin Panel</h1>
 
-<!-- 🧠 Admin Panel -->
-<div class="container" id="adminPanel" style="display:none;">
-    <h2>لوحة التحكم</h2>
+<!-- 🔐 تسجيل الدخول -->
+<h3>تسجيل الدخول</h3>
+<input type="email" id="email" placeholder="Email">
+<input type="password" id="password" placeholder="Password">
+<button onclick="login()">Login</button>
 
-    <button onclick="logout()">تسجيل خروج</button>
+<hr>
 
-    <input type="text" id="seat" placeholder="رقم الجلوس">
-    <input type="text" id="name" placeholder="اسم الطالب">
-    <input type="text" id="grade" placeholder="الصف">
+<!-- 📚 إضافة مادة -->
+<h3>إضافة مادة</h3>
+<input type="text" id="subjectName" placeholder="اسم المادة">
+<button onclick="addSubject()">إضافة مادة</button>
 
-    <input type="number" id="math" placeholder="رياضيات">
-    <input type="number" id="physics" placeholder="فيزياء">
-    <input type="number" id="chemistry" placeholder="كيمياء">
-    <input type="number" id="biology" placeholder="لغة عربية">
-    <input type="number" id="english" placeholder="إنجليزي">
-    <input type="number" id="computer" placeholder="كمبيوتر">
+<!-- ❌ حذف مادة -->
+<h3>حذف مادة</h3>
+<input type="text" id="deleteSubject" placeholder="اسم المادة">
+<button onclick="deleteSubject()">حذف مادة</button>
 
-    <button onclick="addStudent()">إضافة الطالب</button>
+<hr>
 
-    <p id="msg"></p>
-</div>
+<!-- 🎯 اختيار مادة -->
+<h3>إضافة درجات طالب</h3>
+<input type="text" id="seatNumber" placeholder="رقم الجلوس">
 
-<script type="module">
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-import { getFirestore, collection, addDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
-import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } 
-from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+<select id="subjectsSelect"></select>
 
+<input type="number" id="degree" placeholder="الدرجة">
+
+<button onclick="addDegree()">إضافة الدرجة</button>
+
+<!-- Firebase -->
+<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
+
+<script>
+// 🔥 بيانات Firebase (حط بتوعك هنا)
 const firebaseConfig = {
-  apiKey: "AIzaSyCMgXqovKaA6ylpM_3mq6zUAWyrhbA1m2M",
-  authDomain: "students-31340.firebaseapp.com",
-  projectId: "students-31340",
+  apiKey: "YOUR_API_KEY",
+  authDomain: "YOUR_PROJECT.firebaseapp.com",
+  projectId: "YOUR_PROJECT_ID"
 };
 
-const app = initializeApp(firebaseConfig);
-const db = getFirestore(app);
-const auth = getAuth(app);
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
 
-// 🔐 تسجيل الدخول
-window.login = function() {
-    let email = document.getElementById("email").value;
-    let password = document.getElementById("password").value;
+// 🔐 تسجيل دخول
+function login(){
+  const email = document.getElementById("email").value;
+  const password = document.getElementById("password").value;
 
-    signInWithEmailAndPassword(auth, email, password)
-    .then(() => {})
-    .catch(() => {
-        document.getElementById("loginMsg").innerText = "❌ بيانات غلط";
+  firebase.auth().signInWithEmailAndPassword(email, password)
+    .then(() => {
+      alert("تم تسجيل الدخول ✅");
+    })
+    .catch(err => alert(err.message));
+}
+
+// 📚 تحميل المواد في Dropdown
+function loadSubjects() {
+  const select = document.getElementById("subjectsSelect");
+  select.innerHTML = "";
+
+  db.collection("subjects").get().then(snapshot => {
+    snapshot.forEach(doc => {
+      const option = document.createElement("option");
+      option.value = doc.data().name;
+      option.textContent = doc.data().name;
+      select.appendChild(option);
+    });
+  });
+}
+
+// ➕ إضافة مادة
+function addSubject() {
+  const name = document.getElementById("subjectName").value;
+
+  db.collection("subjects").add({ name: name })
+    .then(() => {
+      alert("تم إضافة المادة ✅");
+      loadSubjects();
     });
 }
 
-// 🔄 متابعة حالة تسجيل الدخول
-onAuthStateChanged(auth, (user) => {
-    if (user) {
-        document.getElementById("loginBox").style.display = "none";
-        document.getElementById("adminPanel").style.display = "block";
-    } else {
-        document.getElementById("loginBox").style.display = "block";
-        document.getElementById("adminPanel").style.display = "none";
-    }
-});
+// ❌ حذف مادة
+function deleteSubject() {
+  const name = document.getElementById("deleteSubject").value;
 
-// 🚪 تسجيل خروج
-window.logout = function() {
-    signOut(auth);
+  db.collection("subjects")
+    .where("name", "==", name)
+    .get()
+    .then(snapshot => {
+      snapshot.forEach(doc => doc.ref.delete());
+      alert("تم الحذف ✅");
+      loadSubjects();
+    });
 }
 
-// ➕ إضافة طالب
-window.addStudent = async function() {
-    let seat = document.getElementById("seat").value;
-    let name = document.getElementById("name").value;
-    let grade = document.getElementById("grade").value;
+// 🎯 إضافة درجة لطالب
+function addDegree() {
+  const seat = document.getElementById("seatNumber").value;
+  const subject = document.getElementById("subjectsSelect").value;
+  const degree = document.getElementById("degree").value;
 
-    let math = Number(document.getElementById("math").value);
-    let physics = Number(document.getElementById("physics").value);
-    let chemistry = Number(document.getElementById("chemistry").value);
-    let biology = Number(document.getElementById("biology").value);
-    let english = Number(document.getElementById("english").value);
-    let computer = Number(document.getElementById("computer").value);
-
-    let total = math + physics + chemistry + biology + english + computer;
-    let status = total >= 210 ? "ناجح" : "راسب";
-
-    try {
-        await addDoc(collection(db, "students"), {
-            seat,name,grade,
-            math,physics,chemistry,biology,english,computer,
-            total,status
-        });
-
-        document.getElementById("msg").innerText = "✅ تم الإضافة";
-
-    } catch (e) {
-        document.getElementById("msg").innerText = "❌ خطأ";
+  db.collection("students").doc(seat).set({
+    subjects: {
+      [subject]: Number(degree)
     }
+  }, { merge: true });
+
+  alert("تم إضافة الدرجة ✅");
 }
+
+// تحميل المواد أول ما الصفحة تفتح
+loadSubjects();
+
 </script>
 
 </body>
