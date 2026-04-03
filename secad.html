@@ -86,24 +86,22 @@ import { getFirestore, collection, addDoc } from "https://www.gstatic.com/fireba
 import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } 
 from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
+// 🔹 إعدادات Firebase
 const firebaseConfig = {
   apiKey: "AIzaSyCMgXqovKaA6ylpM_3mq6zUAWyrhbA1m2M",
   authDomain: "students-31340.firebaseapp.com",
   projectId: "students-31340",
 };
-
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const auth = getAuth(app);
 
-// 🔐 Login
+// 🔐 تسجيل الدخول
 window.login = function() {
     let email = document.getElementById("email").value;
     let password = document.getElementById("password").value;
     signInWithEmailAndPassword(auth, email, password)
-    .catch(() => {
-        document.getElementById("loginMsg").innerText = "❌ بيانات غلط";
-    });
+    .catch(() => document.getElementById("loginMsg").innerText = "❌ بيانات غلط");
 }
 
 // 🔄 متابعة حالة تسجيل الدخول
@@ -117,7 +115,7 @@ onAuthStateChanged(auth, (user) => {
     }
 });
 
-// 🚪 Logout
+// 🚪 تسجيل خروج
 window.logout = function() { signOut(auth); }
 
 // ➕ إضافة طالب يدوي
@@ -143,7 +141,7 @@ window.addStudent = async function() {
     }
 }
 
-// 📄 رفع CSV
+// 📄 تحويل CSV إلى JSON
 function csvToJSON(csv){
     const lines = csv.trim().split("\n");
     const headers = lines.shift().split(",");
@@ -164,6 +162,7 @@ function csvToJSON(csv){
     });
 }
 
+// 🚀 رفع CSV كامل
 async function uploadStudents(students){
     const log = document.getElementById("log");
     for(const student of students){
