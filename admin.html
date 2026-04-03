@@ -2,137 +2,127 @@
 <html lang="ar">
 <head>
 <meta charset="UTF-8">
-<title>Admin - Esam Kora</title>
+<title>لوحة التحكم - Esam Kora</title>
 
 <style>
 body {
     font-family: Arial;
-    background: #1e1e2f;
-    color: white;
+    direction: rtl;
     text-align: center;
+    background: linear-gradient(135deg,#0f2027,#203a43,#2c5364);
+    color: white;
+}
+
+.container {
+    background: rgba(255,255,255,0.1);
+    padding: 20px;
+    margin: 50px auto;
+    width: 90%;
+    max-width: 500px;
+    border-radius: 15px;
 }
 
 input {
+    width: 90%;
     padding: 10px;
     margin: 5px;
-    border-radius: 8px;
+    border-radius: 10px;
     border: none;
 }
 
 button {
-    padding: 10px 15px;
-    margin: 5px;
+    padding: 12px;
+    margin-top: 10px;
     border: none;
-    border-radius: 8px;
+    border-radius: 10px;
     background: #00c6ff;
     color: white;
     cursor: pointer;
+    width: 95%;
 }
 
-.card {
-    background: #2c2c3e;
-    padding: 15px;
-    margin: 10px auto;
-    width: 300px;
-    border-radius: 10px;
+button:hover {
+    background: #0072ff;
 }
 </style>
 </head>
 
 <body>
 
-<h2>🔐 تسجيل دخول الأدمن</h2>
+<div class="container">
+    <h2>لوحة تحكم Esam Kora</h2>
 
-<div id="login">
-    <input type="password" id="pass" placeholder="كلمة السر">
-    <br>
-    <button onclick="login()">دخول</button>
+    <input type="text" id="seat" placeholder="رقم الجلوس">
+    <input type="text" id="name" placeholder="اسم الطالب">
+    <input type="text" id="grade" placeholder="الصف">
+
+    <input type="number" id="math" placeholder="رياضيات">
+    <input type="number" id="physics" placeholder="فيزياء">
+    <input type="number" id="chemistry" placeholder="كيمياء">
+    <input type="number" id="biology" placeholder="أحياء">
+    <input type="number" id="english" placeholder="إنجليزي">
+    <input type="number" id="computer" placeholder="كمبيوتر">
+
+    <button onclick="addStudent()">إضافة الطالب</button>
+
+    <p id="msg"></p>
 </div>
 
-<div id="panel" style="display:none;">
-    <h2>لوحة التحكم</h2>
+<!-- Firebase -->
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+import { getFirestore, collection, addDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-    <input id="seat" placeholder="رقم الجلوس"><br>
-    <input id="name" placeholder="الاسم"><br>
-    <input id="grade" placeholder="الصف"><br>
+const firebaseConfig = {
+  apiKey: "PAIzaSyCMgXqovKaA6ylpM_3mq6zUAWyrhbA1m2M",
+  authDomain: "students-31340.firebaseapp.com",
+  projectId: "students-31340",
+};
 
-    <input id="m1" placeholder="Math"><br>
-    <input id="m2" placeholder="Physics"><br>
-    <input id="m3" placeholder="Chemistry"><br>
-    <input id="m4" placeholder="Biology"><br>
-    <input id="m5" placeholder="English"><br>
-    <input id="m6" placeholder="Computer"><br>
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
 
-    <button onclick="addStudent()">➕ إضافة</button>
-    <button onclick="exportCSV()">📤 تحميل CSV</button>
+window.addStudent = async function() {
+    let seat = document.getElementById("seat").value;
+    let name = document.getElementById("name").value;
+    let grade = document.getElementById("grade").value;
 
-    <div id="list"></div>
-</div>
+    let math = Number(document.getElementById("math").value);
+    let physics = Number(document.getElementById("physics").value);
+    let chemistry = Number(document.getElementById("chemistry").value);
+    let biology = Number(document.getElementById("biology").value);
+    let english = Number(document.getElementById("english").value);
+    let computer = Number(document.getElementById("computer").value);
 
-<script>
-let password = "1234"; // غيرها براحتك
-let students = [];
+    let total = math + physics + chemistry + biology + english + computer;
 
-function login() {
-    let p = document.getElementById("pass").value;
+    let status = total >= 210 ? "ناجح" : "راسب";
 
-    if (p === password) {
-        document.getElementById("login").style.display = "none";
-        document.getElementById("panel").style.display = "block";
-    } else {
-        alert("❌ كلمة السر غلط");
+    if (!seat || !name) {
+        document.getElementById("msg").innerText = "❌ املأ البيانات";
+        return;
     }
-}
 
-function addStudent() {
-    let seat = document.getElementById("seat").value.trim();
-    let name = document.getElementById("name").value.trim();
-    let grade = document.getElementById("grade").value.trim();
+    try {
+        await addDoc(collection(db, "students"), {
+            seat,
+            name,
+            grade,
+            math,
+            physics,
+            chemistry,
+            biology,
+            english,
+            computer,
+            total,
+            status
+        });
 
-    let m1 = parseInt(document.getElementById("m1").value) || 0;
-    let m2 = parseInt(document.getElementById("m2").value) || 0;
-    let m3 = parseInt(document.getElementById("m3").value) || 0;
-    let m4 = parseInt(document.getElementById("m4").value) || 0;
-    let m5 = parseInt(document.getElementById("m5").value) || 0;
-    let m6 = parseInt(document.getElementById("m6").value) || 0;
+        document.getElementById("msg").innerText = "✅ تم إضافة الطالب";
 
-    let total = m1 + m2 + m3 + m4 + m5 + m6;
-    let status = total >= 200 ? "ناجح" : "راسب";
-
-    let student = {
-        seat, name, grade, m1, m2, m3, m4, m5, m6, total, status
-    };
-
-    students.push(student);
-    display();
-}
-
-function display() {
-    let html = "";
-
-    students.forEach(s => {
-        html += `
-        <div class="card">
-            ${s.name} - ${s.total}
-        </div>
-        `;
-    });
-
-    document.getElementById("list").innerHTML = html;
-}
-
-function exportCSV() {
-    let csv = "seat,name,grade,Math,Physics,Chemistry,Biology,English,Computer,total,status\n";
-
-    students.forEach(s => {
-        csv += `${s.seat},${s.name},${s.grade},${s.m1},${s.m2},${s.m3},${s.m4},${s.m5},${s.m6},${s.total},${s.status}\n`;
-    });
-
-    let blob = new Blob([csv], { type: "text/csv" });
-    let a = document.createElement("a");
-    a.href = URL.createObjectURL(blob);
-    a.download = "results.csv";
-    a.click();
+    } catch (error) {
+        document.getElementById("msg").innerText = "❌ خطأ: " + error;
+    }
 }
 </script>
 
