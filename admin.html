@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+<meta charset="UTF-8">
+<title>رفع الطلاب - Esam Kora</title>
+<style>
+body {
+    font-family: Arial;
+    direction: rtl;
+    text-align: center;
+    background: linear-gradient(135deg,#141e30,#243b55);
+    color: white;
+}
+.container {
+    margin-top: 50px;
+}
+input, button {
+    padding: 12px;
+    margin: 10px;
+    border-radius: 10px;
+    border: none;
+}
+button {
+    background: #00c6ff;
+    color: white;
+    cursor: pointer;
+}
+button:hover {
+    background: #0072ff;
+}
+#log {
+    margin-top: 20px;
+    text-align: left;
+    width: 90%;
+    max-width: 600px;
+    margin-left: auto;
+    margin-right: auto;
+    background: rgba(255,255,255,0.1);
+    padding: 10px;
+    border-radius: 10px;
+    height: 300px;
+    overflow-y: auto;
+}
+</style>
+</head>
+<body>
+
+<div class="container">
+<h1>رفع الطلاب من CSV</h1>
+<input type="file" id="csvFile" accept=".csv">
+<br>
+<button onclick="uploadCSV()">رفع الملف</button>
+
+<div id="log"></div>
+</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+import { getFirestore, collection, addDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyCMgXqovKaA6ylpM_3mq6zUAWyrhbA1m2M",
+  authDomain: "students-31340.firebaseapp.com",
+  projectId: "students-31340",
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+
+function csvToJSON(csv) {
+    const lines = csv.trim().split("\n");
+    const headers = lines.shift().split(",");
+    const result = lines.map(line => {
+        const obj = {};
+        const currentline = line.split(",");
+        headers.forEach((h,i) => {
+            const value = currentline[i] ? currentline[i].trim() : "";
+            if(h === "seat" || h === "name" || h === "grade") {
+                obj[h] = value;
+            } else if(value !== "") {
+                if(!obj.subjects) obj.subjects = {};
+                obj.subjects[h] = Number(value);
+            }
+        });
+        // حساب المجموع والحالة
+        const total = obj.subjects ? Object.values(obj.subjects).reduce((a,b)=>a+b,0) : 0;
+        obj.total = total;
+        obj.status = total >= 210 ? "ناجح" : "راسب";
+        return obj;
+    });
+    return result;
+}
+
+async function uploadStudents(students) {
+    const log = document.getElementById("log");
+    for(const student of students){
+        try{
+            await addDoc(collection(db,"students"), student);
+            log.innerHTML += `✅ تم رفع: ${student.name}<br>`;
+        }catch(e){
+            log.innerHTML += `❌ خطأ في: ${student.name}<br>`;
+        }
+    }
+}
+
+window.uploadCSV = function(){
+    const file = document.getElementById("csvFile").files[0];
+    const log = document.getElementById("log");
+    if(!file){
+        alert("اختر ملف CSV أولاً");
+        return;
+    }
+    log.innerHTML = "⏳ جاري رفع الملف...<br>";
+    const reader = new FileReader();
+    reader.onload = function(e){
+        const text = e.target.result;
+        const students = csvToJSON(text);
+        uploadStudents(students);
+    }
+    reader.readAsText(file);
+}
+</script>
+
+</body>
+</html>>
