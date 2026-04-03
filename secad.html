@@ -1,10 +1,8 @@
-
 <!DOCTYPE html>
 <html lang="ar">
 <head>
 <meta charset="UTF-8">
 <title>Admin - Esam Kora</title>
-
 <style>
 body {
     font-family: Arial;
@@ -13,32 +11,38 @@ body {
     background: linear-gradient(135deg,#141e30,#243b55);
     color: white;
 }
-
 .container {
     margin: 50px auto;
     background: rgba(255,255,255,0.1);
     padding: 20px;
     border-radius: 15px;
     width: 90%;
-    max-width: 500px;
+    max-width: 600px;
 }
-
-input, button, select {
+input, button {
     width: 90%;
     padding: 10px;
     margin: 5px;
     border-radius: 10px;
     border: none;
 }
-
 button {
     background: #00c6ff;
     color: white;
     cursor: pointer;
 }
+button:hover { background:#0072ff; }
+#log {
+    margin-top: 20px;
+    text-align: left;
+    background: rgba(255,255,255,0.1);
+    padding: 10px;
+    border-radius: 10px;
+    height: 200px;
+    overflow-y: auto;
+}
 </style>
 </head>
-
 <body>
 
 <!-- 🔐 Login -->
@@ -53,24 +57,27 @@ button {
 <!-- 🧠 Admin Panel -->
 <div class="container" id="adminPanel" style="display:none;">
     <h2>لوحة التحكم</h2>
-
     <button onclick="logout()">تسجيل خروج</button>
 
+    <h3>إضافة طالب يدوي</h3>
     <input type="text" id="seat" placeholder="رقم الجلوس">
     <input type="text" id="name" placeholder="اسم الطالب">
     <input type="text" id="grade" placeholder="الصف">
-
-    <h3>إضافة درجات الطالب (المواد اختيارية)</h3>
     <input type="number" id="math" placeholder="رياضيات">
     <input type="number" id="physics" placeholder="فيزياء">
     <input type="number" id="chemistry" placeholder="كيمياء">
     <input type="number" id="biology" placeholder="أحياء">
     <input type="number" id="english" placeholder="إنجليزي">
     <input type="number" id="computer" placeholder="كمبيوتر">
-
     <button onclick="addStudent()">إضافة الطالب</button>
-
     <p id="msg"></p>
+
+    <hr>
+
+    <h3>رفع CSV كامل</h3>
+    <input type="file" id="csvFile" accept=".csv">
+    <button onclick="uploadCSV()">رفع الملف</button>
+    <div id="log"></div>
 </div>
 
 <script type="module">
@@ -89,13 +96,11 @@ const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const auth = getAuth(app);
 
-// 🔐 تسجيل الدخول
+// 🔐 Login
 window.login = function() {
     let email = document.getElementById("email").value;
     let password = document.getElementById("password").value;
-
     signInWithEmailAndPassword(auth, email, password)
-    .then(() => {})
     .catch(() => {
         document.getElementById("loginMsg").innerText = "❌ بيانات غلط";
     });
@@ -103,7 +108,7 @@ window.login = function() {
 
 // 🔄 متابعة حالة تسجيل الدخول
 onAuthStateChanged(auth, (user) => {
-    if (user) {
+    if(user){
         document.getElementById("loginBox").style.display = "none";
         document.getElementById("adminPanel").style.display = "block";
     } else {
@@ -112,42 +117,76 @@ onAuthStateChanged(auth, (user) => {
     }
 });
 
-// 🚪 تسجيل خروج
-window.logout = function() {
-    signOut(auth);
-}
+// 🚪 Logout
+window.logout = function() { signOut(auth); }
 
-// ➕ إضافة طالب (المواد اختيارية)
+// ➕ إضافة طالب يدوي
 window.addStudent = async function() {
     let seat = document.getElementById("seat").value;
     let name = document.getElementById("name").value;
     let grade = document.getElementById("grade").value;
 
-    // جمع المواد ديناميك
     let subjects = {};
-    const fields = ["math","physics","chemistry","biology","english","computer"];
-    fields.forEach(f => {
-        let val = document.getElementById(f).value;
-        if(val !== "") {  // لو حاطط حاجة بس
-            subjects[f] = Number(val);
-        }
+    ["math","physics","chemistry","biology","english","computer"].forEach(id=>{
+        let val = document.getElementById(id).value;
+        if(val) subjects[id] = Number(val);
     });
 
-    let total = Object.values(subjects).reduce((a,b)=>a+b,0);
-    let status = total >= 210 ? "ناجح" : "راسب";
+    const total = Object.values(subjects).reduce((a,b)=>a+b,0);
+    const status = total >= 210 ? "ناجح":"راسب";
 
-    try {
-        await addDoc(collection(db, "students"), {
-            seat, name, grade,
-            subjects,   // المواد فقط اللي اتضافت
-            total, status
-        });
-
+    try{
+        await addDoc(collection(db,"students"), {seat,name,grade,subjects,total,status});
         document.getElementById("msg").innerText = "✅ تم الإضافة";
-
-    } catch(e) {
+    }catch(e){
         document.getElementById("msg").innerText = "❌ خطأ";
     }
+}
+
+// 📄 رفع CSV
+function csvToJSON(csv){
+    const lines = csv.trim().split("\n");
+    const headers = lines.shift().split(",");
+    return lines.map(line=>{
+        const obj = {};
+        const currentline = line.split(",");
+        const subjects = {};
+        headers.forEach((h,i)=>{
+            const val = currentline[i] ? currentline[i].trim() : "";
+            if(["seat","name","grade"].includes(h)) obj[h]=val;
+            else if(val!=="") subjects[h]=Number(val);
+        });
+        obj.subjects = subjects;
+        const total = Object.values(subjects).reduce((a,b)=>a+b,0);
+        obj.total = total;
+        obj.status = total>=210?"ناجح":"راسب";
+        return obj;
+    });
+}
+
+async function uploadStudents(students){
+    const log = document.getElementById("log");
+    for(const student of students){
+        try{
+            await addDoc(collection(db,"students"), student);
+            log.innerHTML += `✅ تم رفع: ${student.name}<br>`;
+        }catch(e){
+            log.innerHTML += `❌ خطأ في: ${student.name}<br>`;
+        }
+    }
+}
+
+window.uploadCSV = function(){
+    const file = document.getElementById("csvFile").files[0];
+    if(!file){ alert("اختر ملف CSV أولاً"); return; }
+    const log = document.getElementById("log");
+    log.innerHTML = "⏳ جاري رفع الملف...<br>";
+    const reader = new FileReader();
+    reader.onload = function(e){
+        const students = csvToJSON(e.target.result);
+        uploadStudents(students);
+    }
+    reader.readAsText(file);
 }
 </script>
 
