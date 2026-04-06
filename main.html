@@ -2,55 +2,61 @@
 <html lang="ar">
 <head>
 <meta charset="UTF-8">
-<title>ESAM KORA SEC</title>
+<title>Esam Kora - نتيجة الطلاب</title>
+
 <style>
 body {
     font-family: Arial;
     direction: rtl;
     text-align: center;
-    background: #1e1e2f;
+    background: linear-gradient(135deg,#141e30,#243b55);
     color: white;
 }
+
 .container {
-    margin-top: 50px;
+    margin-top: 100px;
 }
-input, button, select {
-    padding: 10px;
-    margin: 5px;
+
+input {
+    padding: 12px;
+    width: 250px;
     border-radius: 10px;
     border: none;
 }
+
 button {
+    padding: 12px 20px;
+    border: none;
+    border-radius: 10px;
     background: #00c6ff;
     color: white;
+    cursor: pointer;
+    margin: 5px;
 }
-#result {
+
+button:hover {
+    background: #0072ff;
+}
+
+.card {
     margin-top: 20px;
+    padding: 20px;
     background: rgba(255,255,255,0.1);
-    padding: 15px;
-    border-radius: 10px;
+    border-radius: 15px;
 }
 </style>
 </head>
+
 <body>
 
 <div class="container">
-    <h1>نتيجة الطالب</h1>
+    <h1>نتيجة مدرسة Esam Kora</h1>
 
-    <select id="mode">
-        <option value="csv">📂 من ملف CSV</option>
-        <option value="firebase">☁️ من قاعدة البيانات</option>
-    </select>
-
+    <input type="text" id="seat" placeholder="ادخل رقم الجلوس">
     <br>
-
-    <input type="file" id="file" accept=".csv">
+    <button onclick="getResult()">عرض النتيجة</button>
     <br>
-
-    <input type="text" id="seat" placeholder="رقم الجلوس">
-    <br>
-
-    <button onclick="search()">بحث</button>
+    <button onclick="goTop()">عرض أوائل الطلاب</button>
 
     <div id="result"></div>
 </div>
@@ -60,7 +66,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebas
 import { getFirestore, collection, getDocs } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
 const firebaseConfig = {
-  apiKey: "AIzaSyCMgXqovKaA6ylpM_3mq6zUAWyrhbA1m2M",
+  apiKey: "YOUR_API_KEY",
   authDomain: "students-31340.firebaseapp.com",
   projectId: "students-31340",
 };
@@ -68,92 +74,116 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
-// 📂 CSV
-let csvData = [];
+//////////////////////////////////////////
+// 🔥 قراءة CSV
+//////////////////////////////////////////
+async function getCSVData() {
+    const res = await fetch("./results.csv");
+    const text = await res.text();
 
-function parseCSV(text){
-    const lines = text.trim().split("\n");
-    const headers = lines.shift().split(",");
-    csvData = lines.map(line=>{
-        let obj = {};
-        let data = line.split(",");
-        headers.forEach((h,i)=>{
-            obj[h] = data[i] ? data[i].trim() : "";
-        });
-        return obj;
-    });
-}
+    let rows = text.split("\n").map(r => r.trim()).filter(r => r);
+    let headers = rows[0].split(",");
 
-document.getElementById("file").addEventListener("change", function(e){
-    const reader = new FileReader();
-    reader.onload = function(ev){
-        parseCSV(ev.target.result);
-        alert("✅ تم تحميل الملف");
-    }
-    reader.readAsText(e.target.files[0]);
-});
+    let students = [];
 
-// 🔍 البحث
-window.search = async function(){
-    const seat = document.getElementById("seat").value;
-    const mode = document.getElementById("mode").value;
-    const resultDiv = document.getElementById("result");
+    for (let i = 1; i < rows.length; i++) {
+        let values = rows[i].split(",");
 
-    if(mode === "csv"){
-        let student = csvData.find(s => s.seat == seat);
-        if(!student){
-            resultDiv.innerHTML = "❌ الطالب غير موجود";
-            return;
-        }
+        let student = {
+            seat: values[0],
+            name: values[1],
+            grade: values[2],
+            subjects: {}
+        };
 
         let total = 0;
-        let subjectsHTML = "";
 
-        for(let key in student){
-            if(!["seat","name","grade"].includes(key) && student[key] !== ""){
-                let mark = Number(student[key]);
-                total += mark;
-                subjectsHTML += `<p>${key}: ${mark}</p>`;
-            }
+        for (let j = 3; j < headers.length; j++) {
+            let sub = headers[j];
+            let deg = parseInt(values[j]) || 0;
+
+            student.subjects[sub] = deg;
+            total += deg;
         }
 
-        resultDiv.innerHTML = `
-            <h3>${student.name}</h3>
-            <p>الصف: ${student.grade}</p>
-            ${subjectsHTML}
-            <h2>المجموع: ${total} / 280</h2>
-        `;
+        student.total = total;
+        student.status = total >= 210 ? "ناجح" : "راسب";
+
+        students.push(student);
     }
 
-    if(mode === "firebase"){
-        const querySnapshot = await getDocs(collection(db,"students"));
-        let found = null;
+    return students;
+}
 
-        querySnapshot.forEach(doc=>{
-            if(doc.data().seat == seat){
-                found = doc.data();
-            }
-        });
+//////////////////////////////////////////
+// 🎯 عرض الطالب
+//////////////////////////////////////////
+function displayStudent(student) {
+    let html = `<div class="card">`;
+    html += `<h2>${student.name}</h2>`;
+    html += `<p>الصف: ${student.grade}</p><hr>`;
 
-        if(!found){
-            resultDiv.innerHTML = "❌ الطالب غير موجود";
-            return;
+    let total = 0;
+
+    if(student.subjects) {
+        for (let sub in student.subjects) {
+            let degree = student.subjects[sub];
+            total += degree;
+            html += `<p>${sub}: ${degree}</p>`;
         }
-
-        let subjectsHTML = "";
-        let total = found.total || 0;
-
-        for(let sub in found.subjects){
-            subjectsHTML += `<p>${sub}: ${found.subjects[sub]}</p>`;
-        }
-
-        resultDiv.innerHTML = `
-            <h3>${found.name}</h3>
-            <p>الصف: ${found.grade}</p>
-            ${subjectsHTML}
-            <h2>المجموع: ${total} / 280</h2>
-        `;
     }
+
+    html += `<hr>`;
+    html += `<h3>المجموع: ${total}</h3>`;
+    html += `<h3>الحالة: ${student.status || (total >= 210 ? "ناجح" : "راسب")}</h3>`;
+    html += `</div>`;
+
+    document.getElementById("result").innerHTML = html;
+}
+
+//////////////////////////////////////////
+// 🔍 البحث في CSV + Firebase
+//////////////////////////////////////////
+window.getResult = async function() {
+    let seat = document.getElementById("seat").value.trim();
+    let resultDiv = document.getElementById("result");
+
+    resultDiv.innerHTML = "⏳ جاري البحث...";
+
+    try {
+        // 1️⃣ CSV
+        let csvStudents = await getCSVData();
+        let student = csvStudents.find(s => s.seat === seat);
+
+        // 2️⃣ Firebase
+        if (!student) {
+            let querySnapshot = await getDocs(collection(db, "students"));
+
+            querySnapshot.forEach((doc) => {
+                let data = doc.data();
+                if (data.seat === seat) {
+                    student = data;
+                }
+            });
+        }
+
+        // 3️⃣ عرض
+        if (student) {
+            displayStudent(student);
+        } else {
+            resultDiv.innerHTML = "❌ رقم الجلوس غير موجود";
+        }
+
+    } catch (error) {
+        resultDiv.innerHTML = "❌ خطأ: " + error;
+    }
+}
+
+//////////////////////////////////////////
+// 🏆 زر الأوائل
+//////////////////////////////////////////
+window.goTop = function() {
+    window.location.href = "top.html";
 }
 </script>
 
