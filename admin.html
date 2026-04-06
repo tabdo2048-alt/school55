@@ -2,7 +2,8 @@
 <html lang="ar">
 <head>
 <meta charset="UTF-8">
-<title>Admin Upload CSV - Esam Kora</title>
+<title>Admin - Esam Kora</title>
+
 <style>
 body {
     font-family: Arial;
@@ -11,6 +12,7 @@ body {
     background: linear-gradient(135deg,#141e30,#243b55);
     color: white;
 }
+
 .container {
     margin: 50px auto;
     background: rgba(255,255,255,0.1);
@@ -19,6 +21,7 @@ body {
     width: 90%;
     max-width: 500px;
 }
+
 input, button {
     width: 90%;
     padding: 10px;
@@ -26,6 +29,7 @@ input, button {
     border-radius: 10px;
     border: none;
 }
+
 button {
     background: #00c6ff;
     color: white;
@@ -33,19 +37,50 @@ button {
 }
 </style>
 </head>
+
 <body>
 
-<div class="container">
-    <h2>رفع ملف CSV للطلاب</h2>
+<!-- 🔐 Login -->
+<div class="container" id="loginBox">
+    <h2>تسجيل دخول الأدمن</h2>
+    <input type="email" id="email" placeholder="Email">
+    <input type="password" id="password" placeholder="Password">
+    <button onclick="login()">دخول</button>
+    <p id="loginMsg"></p>
+</div>
+
+<!-- 🧠 Admin Panel -->
+<div class="container" id="adminPanel" style="display:none;">
+    <h2>لوحة التحكم</h2>
+
+    <button onclick="logout()">تسجيل خروج</button>
+
+    <h3>إضافة طالب يدوي</h3>
+    <input type="text" id="seat" placeholder="رقم الجلوس">
+    <input type="text" id="name" placeholder="اسم الطالب">
+    <input type="text" id="grade" placeholder="الصف">
+
+    <input type="number" id="math" placeholder="رياضيات">
+    <input type="number" id="physics" placeholder="فيزياء">
+    <input type="number" id="chemistry" placeholder="كيمياء">
+    <input type="number" id="arabic" placeholder="عربي">
+    <input type="number" id="english" placeholder="إنجليزي">
+    <input type="number" id="integrated" placeholder="علوم متكاملة">
+
+    <button onclick="addStudent()">إضافة الطالب</button>
+
+    <h3>رفع ملف CSV</h3>
     <input type="file" id="csvFile" accept=".csv">
-    <br>
-    <button onclick="uploadCSV()">رفع الملف</button>
+    <button onclick="uploadCSV()">رفع CSV</button>
+
     <p id="msg"></p>
 </div>
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
 import { getFirestore, collection, addDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } 
+from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyCMgXqovKaA6ylpM_3mq6zUAWyrhbA1m2M",
@@ -55,51 +90,117 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
+const auth = getAuth(app);
 
-window.uploadCSV = async function() {
-    const fileInput = document.getElementById("csvFile");
-    const file = fileInput.files[0];
-    const msg = document.getElementById("msg");
+// 🔐 تسجيل الدخول
+window.login = function() {
+    let email = document.getElementById("email").value;
+    let password = document.getElementById("password").value;
 
-    if (!file) {
-        msg.innerText = "❌ اختر ملف CSV أولاً";
+    signInWithEmailAndPassword(auth, email, password)
+    .then(() => {})
+    .catch(() => {
+        document.getElementById("loginMsg").innerText = "❌ بيانات غلط";
+    });
+}
+
+// 🔄 متابعة حالة تسجيل الدخول
+onAuthStateChanged(auth, (user) => {
+    if (user) {
+        document.getElementById("loginBox").style.display = "none";
+        document.getElementById("adminPanel").style.display = "block";
+    } else {
+        document.getElementById("loginBox").style.display = "block";
+        document.getElementById("adminPanel").style.display = "none";
+    }
+});
+
+// 🚪 تسجيل خروج
+window.logout = function() {
+    signOut(auth);
+}
+
+// ➕ إضافة طالب يدوي
+window.addStudent = async function() {
+    let seat = document.getElementById("seat").value;
+    let name = document.getElementById("name").value;
+    let grade = document.getElementById("grade").value;
+
+    let subjects = {
+        math: Number(document.getElementById("math").value),
+        physics: Number(document.getElementById("physics").value),
+        chemistry: Number(document.getElementById("chemistry").value),
+        arabic: Number(document.getElementById("arabic").value),
+        english: Number(document.getElementById("english").value),
+        integrated: Number(document.getElementById("integrated").value)
+    };
+
+    let total = 0;
+    for (let sub in subjects) {
+        if (!isNaN(subjects[sub]) && subjects[sub] > 0) total += subjects[sub];
+        else subjects[sub] = undefined;
+    }
+
+    let status = total >= 210 ? "ناجح" : "راسب";
+
+    try {
+        await addDoc(collection(db, "students"), {
+            seat,name,grade,
+            subjects,total,status
+        });
+
+        document.getElementById("msg").innerText = "✅ تم الإضافة";
+
+    } catch (e) {
+        document.getElementById("msg").innerText = "❌ خطأ";
+    }
+}
+
+// 📁 رفع CSV
+window.uploadCSV = function() {
+    let fileInput = document.getElementById("csvFile");
+    if (!fileInput.files.length) {
+        alert("اختر ملف CSV");
         return;
     }
 
-    msg.innerText = "⏳ جاري رفع البيانات...";
+    let file = fileInput.files[0];
+    let reader = new FileReader();
 
-    const text = await file.text();
-    const rows = text.split("\n").map(r => r.trim()).filter(r => r);
-    const headers = rows[0].split(",");
+    reader.onload = async function(e) {
+        let text = e.target.result;
+        let rows = text.split("\n").map(r => r.trim()).filter(r=>r);
+        let headers = rows[0].split(",");
 
-    try {
-        for (let i = 1; i < rows.length; i++) {
-            const values = rows[i].split(",");
+        for (let i=1; i<rows.length; i++) {
+            let values = rows[i].split(",");
             let student = {
                 seat: values[0],
                 name: values[1],
                 grade: values[2],
                 subjects: {}
             };
-
             let total = 0;
-            for (let j = 3; j < headers.length; j++) {
-                let sub = headers[j].trim();
+            for (let j=3; j<headers.length; j++) {
                 let deg = parseInt(values[j]) || 0;
-                student.subjects[sub] = deg;
-                total += deg;
+                if (deg>0) {
+                    student.subjects[headers[j]] = deg;
+                    total += deg;
+                }
             }
-
             student.total = total;
-            student.status = total >= 140 ? "ناجح" : "راسب"; // من 280
+            student.status = total >= 210 ? "ناجح" : "راسب";
 
-            await addDoc(collection(db, "students"), student);
+            try {
+                await addDoc(collection(db, "students"), student);
+            } catch(e) {
+                console.log("خطأ رفع: ", student, e);
+            }
         }
-
-        msg.innerText = "✅ تم رفع جميع الطلاب بنجاح!";
-    } catch (e) {
-        msg.innerText = "❌ خطأ أثناء الرفع: " + e;
+        document.getElementById("msg").innerText = "✅ تم رفع كل الطلاب من CSV";
     }
+
+    reader.readAsText(file);
 }
 </script>
 
